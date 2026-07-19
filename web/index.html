@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JMG_BOT v2 — Terminal de Contrôle</title>
+    <!-- Chart.js pour le graphique de latence en temps réel -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons pour des icônes tech épurées -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-color: #090a0f;
+            --card-bg: rgba(20, 24, 35, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f0f3f8;
+            --text-secondary: #8a99ad;
+            --neon-green: #00ffaa;
+            --neon-blue: #00b4d8;
+            --neon-purple: #9d4edd;
+            --neon-red: #ff3366;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            padding: 2rem;
+            /* Lignes de grille en arrière-plan (effet Tron/Matrix subtil) --> */
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-shadow: 0 0 15px rgba(0, 180, 216, 0.5);
+            background: linear-gradient(45deg, var(--text-primary), var(--neon-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Badge de statut Live */
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+            transition: all 0.5s ease;
+        }
+
+        .status-dot.online {
+            background-color: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green);
+            animation: pulse-glow 2s infinite alternate;
+        }
+
+        .status-dot.offline {
+            background-color: var(--neon-red);
+            box-shadow: 0 0 10px var(--neon-red);
+        }
+
+        /* Grid principale */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 180, 216, 0.3);
+        }
+
+        /* Décoration néon sur les cartes */
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--neon-blue);
+            opacity: 0.5;
+        }
+        .card.mc-card::before { background: var(--neon-green); }
+        .card.system-card::before { background: var(--neon-purple); }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-header i { width: 18px; height: 18px; }
+
+        .metric-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-sub {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Section Graphique & Listes */
+        .large-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .large-grid { grid-template-columns: 1fr; }
+        }
+
+        .chart-container {
+            height: 250px;
+            width: 100%;
+        }
+
+        .event-list, .player-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            font-size: 0.9rem;
+        }
+
+        .event-item {
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 6px;
+            border-left: 3px solid var(--border-color);
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            100% { transform: scale(1.05); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <header>
+            <div>
+                <h1>JMG_BOT v2</h1>
+                <p style="color: var(--text-secondary); font-size: 0.85rem;">Système Intégré de Monitoring</p>
+            </div>
+            <div class="live-badge">
+                <div id="global-status-dot" class="status-dot"></div>
+                <span id="global-status-text">Synchronisation...</span>
+            </div>
+        </header>
+
+        <!-- Métriques principales -->
+        <div class="grid">
+            <!-- Latence Bot -->
+            <div class="card">
+                <div class="card-header"><i data-lucide="activity"></i> Latence API</div>
+                <div class="metric-value" id="bot-ping">-- <span style="font-size: 1.2rem;">ms</span></div>
+                <div class="metric-sub" id="bot-uptime">Uptime: --</div>
+            </div>
+
+            <!-- État Serveur Minecraft -->
+            <div class="card mc-card">
+                <div class="card-header"><i data-lucide="server"></i> Serveur Minecraft</div>
+                <div class="metric-value" id="mc-state">--</div>
+                <div class="metric-sub" id="mc-players-count">Joueurs : --</div>
+            </div>
+
+            <!-- Statut Hardware Hôte (via psutil) -->
+            <div class="card system-card">
+                <div class="card-header"><i data-lucide="cpu"></i> Ressources Bot</div>
+                <div class="metric-value" id="sys-ram">-- <span style="font-size: 1.2rem;">Mo</span></div>
+                <div class="metric-sub" id="sys-cpu">Charge CPU: --</div>
+            </div>
+        </div>
+
+        <!-- Graphique Temps Réel et Flux d'événements -->
+        <div class="large-grid">
+            <!-- Graphique de Latence -->
+            <div class="card">
+                <div class="card-header"><i data-lucide="trending-up"></i> Historique de Latence en Direct</div>
+                <div class="chart-container">
+                    <canvas id="pingChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Événements récents -->
+            <div class="card mc-card">
+                <div class="card-header"><i data-lucide="terminal"></i> Journal du Serveur</div>
+                <ul class="event-list" id="events-log">
+                    <li style="color: var(--text-secondary)">En attente de flux...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="web/monitoring.js"></script>
+</body>
+</html>

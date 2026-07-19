@@ -1,0 +1,6 @@
+discord.py==2.4.0
+python-dotenv==1.0.0
+sqlalchemy==2.0.23
+aiohttp==3.9.1
+requests==2.31.0
+urllib3==2.1.0

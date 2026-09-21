@@ -13,6 +13,7 @@ import re
 import time
 
 import asyncio
+import subprocess
 import threading
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -79,6 +80,7 @@ class MonitoringCog(commands.Cog):
         # Lancement d'Uvicorn dans un thread séparé pour ne pas bloquer Discord
         self.api_thread = threading.Thread(target=self._run_api_server, daemon=True)
         self.api_thread.start()
+        self.web_dev_process = None
 
     async def _get_loop_latency(self) -> float:
         """Mesure le retard d'exécution interne de la boucle Asyncio du bot (en ms)"""
@@ -854,13 +856,32 @@ class MonitoringCog(commands.Cog):
         except Exception as e:
             print(f"[DEBUG WEB] Erreur dans la boucle de diffusion rapide : {e}")
 
+    async def start_web_page(self):
+        """Démarre le serveur web FastAPI pour le dashboard de monitoring."""
+        web_directory = "/home/jmg/Bureau/JMG_BOT v2/web/cyber-realm-guard-main"
+
+        if self.web_dev_process and self.web_dev_process.poll() is None:
+            return
+
+        try:
+            self.web_dev_process = subprocess.Popen(
+                ["npm", "run", "dev"],
+                cwd=web_directory,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            print(f"[DEBUG WEB] Frontend lancé avec npm run dev (PID {self.web_dev_process.pid})")
+        except Exception as e:
+            print(f"[DEBUG WEB] Impossible de lancer le frontend : {e}")
+
     @commands.Cog.listener()
     async def on_ready(self):
+        await self.start_web_page()
         # On lance la tâche de fond si elle ne tourne pas déjà
         if not self.web_broadcast_loop.is_running():
             self.web_broadcast_loop.start()
             print("[DEBUG WEB] Boucle de diffusion de données (5s) démarrée !")
-
 
 async def setup(bot):
     """
